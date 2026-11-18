@@ -86,6 +86,8 @@ function renderLicensesTable() {
     let filtered = allLicenses.filter(item => {
         // Tab filtering
         if (activeFilter === 'active' && item.status !== 'active') return false;
+        if (activeFilter === 'app' && (item.client_type || 'app') !== 'app') return false;
+        if (activeFilter === 'script' && item.client_type !== 'script') return false;
         if (activeFilter === 'revoked' && (item.status !== 'revoked' && item.status !== 'blocked')) return false;
         if (activeFilter === 'fraud' && !item.multi_device_detected) return false;
 
@@ -133,6 +135,10 @@ function renderLicensesTable() {
             ? `<span style="font-family:monospace;">${item.bound_ip}</span><br><span style="font-size:11px; color:#4B5563;">[${item.connection_type || 'WiFi'}]</span>`
             : '<span style="color:#9CA3AF;">--</span>';
 
+        const clientBadge = (item.client_type === 'script')
+            ? '<span class="badge" style="background:#7C3AED; color:#FFFFFF; font-weight:600;">💻 سكربت بايثون</span>'
+            : '<span class="badge" style="background:#0284C7; color:#FFFFFF; font-weight:600;">📱 تطبيق أندرويد</span>';
+
         return `
             <tr>
                 <td>
@@ -140,6 +146,7 @@ function renderLicensesTable() {
                     <button class="btn btn-outline btn-sm" style="padding: 2px 6px; font-size:11px;" onclick="copyKey('${item.key}')">نسخ</button>
                     ${fraudWarning}
                 </td>
+                <td>${clientBadge}</td>
                 <td>${statusBadge}</td>
                 <td>
                     <strong>${formatDuration(item.duration_type)}</strong><br>
@@ -351,30 +358,104 @@ function closeModal() {
 async function loadTelemetry(silent = false) {
     const tbody = document.getElementById('telemetryTableBody');
     if (!silent) {
-        tbody.innerHTML = '<tr><td colspan="8" class="loading-td">جاري تحديث سجل التتبع اللحظي...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="loading-td">جاري تحديث سجل التتبع اللحظي...</td></tr>';
     }
 
     try {
         const res = await fetch('/api/admin/telemetry');
         const data = await res.json();
         if (data.success && data.logs && data.logs.length > 0) {
-            tbody.innerHTML = data.logs.map(log => `
-                <tr>
-                    <td style="font-size:11px; white-space:nowrap;">${log.created_at || '--'}</td>
-                    <td><span class="badge ${log.event_type.includes('verify') ? 'badge-active' : 'badge-offline'}">${log.event_type}</span></td>
-                    <td><code class="code-snippet">${(log.license_key || '').substring(0, 14)}...</code></td>
-                    <td><strong>${log.device_model || 'Android'}</strong></td>
-                    <td><span class="badge ${log.connection_type === 'WiFi' ? 'badge-active' : 'badge-warning'}">${log.connection_type || 'WiFi'}</span></td>
-                    <td>${log.ip || '--'} (${log.location || 'Local'})</td>
-                    <td><span style="font-size:11px;">${log.webview_version || 'WebView'}</span></td>
-                    <td><code class="code-snippet" style="font-size:10px;">${(log.browser_fingerprint || '--').substring(0, 16)}</code></td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = data.logs.map(log => {
+                const clientTypeBadge = (log.client_type === 'script')
+                    ? '<span class="badge" style="background:#7C3AED; color:#FFF; font-size:10px;">💻 سكربت</span>'
+                    : '<span class="badge" style="background:#0284C7; color:#FFF; font-size:10px;">📱 تطبيق</span>';
+
+                return `
+                    <tr>
+                        <td style="font-size:11px; white-space:nowrap;">${log.created_at || '--'}</td>
+                        <td>${clientTypeBadge}</td>
+                        <td><span class="badge ${log.event_type.includes('verify') ? 'badge-active' : 'badge-offline'}">${log.event_type}</span></td>
+                        <td><code class="code-snippet">${(log.license_key || '').substring(0, 14)}...</code></td>
+                        <td><strong>${log.device_model || 'Android'}</strong></td>
+                        <td><span class="badge ${log.connection_type === 'WiFi' ? 'badge-active' : 'badge-warning'}">${log.connection_type || 'WiFi'}</span></td>
+                        <td>${log.ip || '--'} (${log.location || 'Local'})</td>
+                        <td><span style="font-size:11px;">${log.webview_version || 'WebView'}</span></td>
+                        <td><code class="code-snippet" style="font-size:10px;">${(log.browser_fingerprint || '--').substring(0, 16)}</code></td>
+                    </tr>
+                `;
+            }).join('');
         } else {
-            if (!silent) tbody.innerHTML = '<tr><td colspan="8" class="loading-td">لا توجد سجلات تتبع حتى الآن.</td></tr>';
+            if (!silent) tbody.innerHTML = '<tr><td colspan="9" class="loading-td">لا توجد سجلات تتبع حتى الآن.</td></tr>';
         }
     } catch (e) {
         console.error('Failed to load telemetry:', e);
-        if (!silent) tbody.innerHTML = '<tr><td colspan="8" class="loading-td">تعذر جلب سجل التتبع.</td></tr>';
+        if (!silent) tbody.innerHTML = '<tr><td colspan="9" class="loading-td">تعذر جلب سجل التتبع.</td></tr>';
+    }
+}
+
+function openAdminSecurityModal() {
+    document.getElementById('currentPassword').value = '';
+    document.getElementById('newPassword').value = '';
+    document.getElementById('confirmPassword').value = '';
+    document.getElementById('pwdErrorMsg').style.display = 'none';
+    document.getElementById('pwdSuccessMsg').style.display = 'none';
+    document.getElementById('adminSecurityModal').style.display = 'flex';
+}
+
+function closeAdminSecurityModal() {
+    document.getElementById('adminSecurityModal').style.display = 'none';
+}
+
+async function handlePasswordChange(e) {
+    e.preventDefault();
+    const curPass = document.getElementById('currentPassword').value;
+    const newPass = document.getElementById('newPassword').value;
+    const confirmPass = document.getElementById('confirmPassword').value;
+    const errBox = document.getElementById('pwdErrorMsg');
+    const successBox = document.getElementById('pwdSuccessMsg');
+    const submitBtn = document.getElementById('btnSubmitPassword');
+
+    errBox.style.display = 'none';
+    successBox.style.display = 'none';
+
+    if (newPass !== confirmPass) {
+        errBox.innerText = 'كلمة المرور الجديدة وتأكيدها غير متطابقين!';
+        errBox.style.display = 'block';
+        return;
+    }
+
+    if (newPass.length < 6) {
+        errBox.innerText = 'كلمة المرور الجديدة يجب أن تحتوي على 6 أحرف على الأقل!';
+        errBox.style.display = 'block';
+        return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.innerText = 'جاري التحديث والتشفير...';
+
+    try {
+        const res = await fetch('/api/admin/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ current_password: curPass, new_password: newPass })
+        });
+        const data = await res.json();
+        if (data.success) {
+            successBox.innerText = data.message;
+            successBox.style.display = 'block';
+            showToast('✔ تم تحديث كلمة مرور الأدمن وتشفيرها بنجاح!');
+            setTimeout(() => {
+                closeAdminSecurityModal();
+            }, 1800);
+        } else {
+            errBox.innerText = data.message || 'فشل تحديث كلمة المرور';
+            errBox.style.display = 'block';
+        }
+    } catch (err) {
+        errBox.innerText = 'حدث خطأ في الاتصال بالسيرفر';
+        errBox.style.display = 'block';
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'تحديث وتشفير كلمة المرور فوراً';
     }
 }

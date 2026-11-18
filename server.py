@@ -9,7 +9,7 @@ from flask import Flask, request, jsonify, render_template, session, redirect, u
 from werkzeug.security import generate_password_hash
 
 from database import get_connection, is_postgres, init_db
-from auth import init_admin, verify_admin_login, admin_required
+from auth import init_admin, verify_admin_login, admin_required, change_admin_password, toggle_admin_account_status
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "PRSC_SUPER_SECRET_SESSION_KEY_2026_PRODUCTION")
@@ -83,13 +83,25 @@ def verify_license():
     webview_version = (data.get("webview_version") or "Android WebView").strip()
     browser_fingerprint = (data.get("browser_fingerprint") or "").strip()
     mac_address = (data.get("mac_address") or "").strip()
+    
+    # Precise Client Type Detection (Script vs App)
+    raw_client = (data.get("client_type") or "").strip().lower()
+    ua = request.headers.get("User-Agent", "").lower()
+    if raw_client in ("script", "bot", "worker", "python") or "script" in ua or "python" in ua or "worker" in ua:
+        client_type = "script"
+    else:
+        client_type = "app"
+
     client_ip = request.headers.get("X-Forwarded-For", request.remote_addr).split(",")[0].strip()
     location = resolve_ip_location(client_ip)
     now_str = time.strftime("%Y-%m-%d %H:%M:%S")
 
+    # Generic ambiguous error messages for security
+    GENERIC_ERR_MSG = "الرمز المدخل غير صالح أو غير متاح حالياً"
+
     if not license_key:
         ts, sig = sign_response("", device_id, "missing_key", False)
-        return jsonify({"success": False, "status": "missing_key", "message": "يرجى إدخال مفتاح الترخيص", "timestamp": ts, "signature": sig}), 400
+        return jsonify({"success": False, "status": "missing_key", "message": "يرجى إدخال الرمز للمتابعة", "timestamp": ts, "signature": sig}), 400
 
     conn = get_connection()
     cur = conn.cursor()
@@ -100,22 +112,22 @@ def verify_license():
         if is_cryptographically_valid_key(license_key):
             # Auto-provision valid key
             cur.execute("""
-                INSERT INTO licenses (key, duration_type, created_at, expires_at, status, bound_device_id, bound_ip, device_model, is_tested, is_online, last_heartbeat, activation_count, multi_device_detected, connection_type, webview_version, browser_fingerprint, mac_address, location)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO licenses (key, duration_type, client_type, created_at, expires_at, status, bound_device_id, bound_ip, device_model, is_tested, is_online, last_heartbeat, activation_count, multi_device_detected, connection_type, webview_version, browser_fingerprint, mac_address, location)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """ if is_postgres() else """
-                INSERT INTO licenses (key, duration_type, created_at, expires_at, status, bound_device_id, bound_ip, device_model, is_tested, is_online, last_heartbeat, activation_count, multi_device_detected, connection_type, webview_version, browser_fingerprint, mac_address, location)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (license_key, "lifetime", time.strftime("%Y-%m-%d"), "2099-12-31", "active", device_id, client_ip, device_model, True, True, now_str, 1, False, connection_type, webview_version, browser_fingerprint, mac_address, location))
+                INSERT INTO licenses (key, duration_type, client_type, created_at, expires_at, status, bound_device_id, bound_ip, device_model, is_tested, is_online, last_heartbeat, activation_count, multi_device_detected, connection_type, webview_version, browser_fingerprint, mac_address, location)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (license_key, "lifetime", client_type, time.strftime("%Y-%m-%d"), "2099-12-31", "active", device_id, client_ip, device_model, True, True, now_str, 1, False, connection_type, webview_version, browser_fingerprint, mac_address, location))
             conn.commit()
             cur.close()
             conn.close()
             ts, sig = sign_response(license_key, device_id, "activated_and_bound", True)
-            return jsonify({"success": True, "status": "activated_and_bound", "expires_at": "2099-12-31", "message": "تم تفعيل ترخيص مدى الحياة (Lifetime VIP) بنجاح!", "timestamp": ts, "signature": sig})
+            return jsonify({"success": True, "status": "activated_and_bound", "expires_at": "2099-12-31", "message": "تم تفعيل الترخيص بنجاح!", "timestamp": ts, "signature": sig})
         else:
             cur.close()
             conn.close()
             ts, sig = sign_response(license_key, device_id, "invalid_key", False)
-            return jsonify({"success": False, "status": "invalid_key", "message": "مفتاح الترخيص غير صالح رياضياً أو غير مسجل في السيرفر", "timestamp": ts, "signature": sig}), 404
+            return jsonify({"success": False, "status": "invalid_key", "message": GENERIC_ERR_MSG, "timestamp": ts, "signature": sig}), 404
 
     bound_dev = row[1] if isinstance(row, (tuple, list)) else row['bound_device_id']
     expires_at = row[4] if isinstance(row, (tuple, list)) else row['expires_at']
@@ -127,7 +139,7 @@ def verify_license():
         cur.close()
         conn.close()
         ts, sig = sign_response(license_key, device_id, status, False)
-        return jsonify({"success": False, "status": status, "message": "هذا المفتاح محظور أو ملغى من الإدارة", "timestamp": ts, "signature": sig}), 403
+        return jsonify({"success": False, "status": status, "message": GENERIC_ERR_MSG, "timestamp": ts, "signature": sig}), 403
 
     # Expiration check
     if expires_at and expires_at != "2099-12-31":
@@ -139,7 +151,7 @@ def verify_license():
                 cur.close()
                 conn.close()
                 ts, sig = sign_response(license_key, device_id, "expired", False)
-                return jsonify({"success": False, "status": "expired", "message": "انتهت فترة صلاحية هذا الترخيص", "timestamp": ts, "signature": sig}), 403
+                return jsonify({"success": False, "status": "expired", "message": GENERIC_ERR_MSG, "timestamp": ts, "signature": sig}), 403
         except Exception:
             pass
 
@@ -149,12 +161,13 @@ def verify_license():
         multi_device = True
         cur.execute("UPDATE licenses SET multi_device_detected = %s WHERE key = %s" if is_postgres() else "UPDATE licenses SET multi_device_detected = ? WHERE key = ?", (True if is_postgres() else 1, license_key))
 
-    # Update activation data
+    # Update activation data including client_type
     cur.execute("""
         UPDATE licenses SET
             bound_device_id = %s,
             bound_ip = %s,
             device_model = %s,
+            client_type = %s,
             is_tested = %s,
             is_online = %s,
             last_heartbeat = %s,
@@ -170,6 +183,7 @@ def verify_license():
             bound_device_id = ?,
             bound_ip = ?,
             device_model = ?,
+            client_type = ?,
             is_tested = ?,
             is_online = ?,
             last_heartbeat = ?,
@@ -181,20 +195,20 @@ def verify_license():
             location = ?
         WHERE key = ?
     """, (
-        device_id, client_ip, device_model,
+        device_id, client_ip, device_model, client_type,
         True if is_postgres() else 1,
         True if is_postgres() else 1,
         now_str, act_count + 1, connection_type, webview_version, browser_fingerprint, mac_address, location, license_key
     ))
 
-    # Log telemetry
+    # Log telemetry with client_type
     cur.execute("""
-        INSERT INTO device_telemetry_logs (license_key, device_id, event_type, ip, connection_type, device_model, location, webview_version, browser_fingerprint, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO device_telemetry_logs (license_key, device_id, client_type, event_type, ip, connection_type, device_model, location, webview_version, browser_fingerprint, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """ if is_postgres() else """
-        INSERT INTO device_telemetry_logs (license_key, device_id, event_type, ip, connection_type, device_model, location, webview_version, browser_fingerprint, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (license_key, device_id, "verify_activation", client_ip, connection_type, device_model, location, webview_version, browser_fingerprint, now_str))
+        INSERT INTO device_telemetry_logs (license_key, device_id, client_type, event_type, ip, connection_type, device_model, location, webview_version, browser_fingerprint, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (license_key, device_id, client_type, "verify_activation", client_ip, connection_type, device_model, location, webview_version, browser_fingerprint, now_str))
 
     conn.commit()
     cur.close()
@@ -205,7 +219,7 @@ def verify_license():
         "success": True,
         "status": "active",
         "expires_at": expires_at or "2099-12-31",
-        "message": "تم تفعيل الترخيص وربطه بجهازك بنجاح!",
+        "message": "تم تفعيل الترخيص بنجاح!",
         "timestamp": ts,
         "signature": sig
     })
@@ -237,7 +251,19 @@ def license_heartbeat():
     if status in ("revoked", "blocked", "expired"):
         cur.close()
         conn.close()
-        return jsonify({"success": False, "status": status, "message": "هذا المفتاح محظور أو ملغى من الإدارة"}), 403
+        return jsonify({"success": False, "status": status, "message": "انتهت جلسة الاستخدام، يرجى إعادة التحقق"}), 403
+
+    # Update heartbeat
+    cur.execute("""
+        UPDATE licenses SET last_heartbeat = %s, is_online = %s WHERE key = %s
+    """ if is_postgres() else """
+        UPDATE licenses SET last_heartbeat = ?, is_online = 1 WHERE key = ?
+    """, (now_str, True, license_key) if is_postgres() else (now_str, license_key))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return jsonify({"success": True, "status": "active", "timestamp": int(time.time())})
 
     cur.execute("UPDATE licenses SET is_online = %s, last_heartbeat = %s, bound_ip = %s WHERE key = %s" if is_postgres() else "UPDATE licenses SET is_online = ?, last_heartbeat = ?, bound_ip = ? WHERE key = ?", (True if is_postgres() else 1, now_str, client_ip, license_key))
     conn.commit()
@@ -328,7 +354,7 @@ def list_licenses():
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        SELECT key, duration_type, created_at, expires_at, status, bound_device_id, bound_ip,
+        SELECT key, duration_type, client_type, created_at, expires_at, status, bound_device_id, bound_ip,
                device_model, is_tested, is_online, last_heartbeat, activation_count,
                multi_device_detected, connection_type, webview_version, browser_fingerprint,
                mac_address, location
@@ -342,7 +368,7 @@ def list_licenses():
     now = datetime.now()
     results = []
     for r in rows:
-        last_hb = r[10] if isinstance(r, (tuple, list)) else r['last_heartbeat']
+        last_hb = r[11] if isinstance(r, (tuple, list)) else r['last_heartbeat']
         # Compute online status based on heartbeat within 90 seconds
         online = False
         if last_hb:
@@ -356,22 +382,23 @@ def list_licenses():
         results.append({
             "key": r[0] if isinstance(r, (tuple, list)) else r['key'],
             "duration_type": r[1] if isinstance(r, (tuple, list)) else r['duration_type'],
-            "created_at": r[2] if isinstance(r, (tuple, list)) else r['created_at'],
-            "expires_at": r[3] if isinstance(r, (tuple, list)) else r['expires_at'],
-            "status": r[4] if isinstance(r, (tuple, list)) else r['status'],
-            "bound_device_id": r[5] if isinstance(r, (tuple, list)) else r['bound_device_id'],
-            "bound_ip": r[6] if isinstance(r, (tuple, list)) else r['bound_ip'],
-            "device_model": r[7] if isinstance(r, (tuple, list)) else r['device_model'],
-            "is_tested": bool(r[8] if isinstance(r, (tuple, list)) else r['is_tested']),
+            "client_type": (r[2] if isinstance(r, (tuple, list)) else r['client_type']) or "app",
+            "created_at": r[3] if isinstance(r, (tuple, list)) else r['created_at'],
+            "expires_at": r[4] if isinstance(r, (tuple, list)) else r['expires_at'],
+            "status": r[5] if isinstance(r, (tuple, list)) else r['status'],
+            "bound_device_id": r[6] if isinstance(r, (tuple, list)) else r['bound_device_id'],
+            "bound_ip": r[7] if isinstance(r, (tuple, list)) else r['bound_ip'],
+            "device_model": r[8] if isinstance(r, (tuple, list)) else r['device_model'],
+            "is_tested": bool(r[9] if isinstance(r, (tuple, list)) else r['is_tested']),
             "is_online": online,
             "last_heartbeat": last_hb or "لم يتصل بعد",
-            "activation_count": r[11] if isinstance(r, (tuple, list)) else r['activation_count'],
-            "multi_device_detected": bool(r[12] if isinstance(r, (tuple, list)) else r['multi_device_detected']),
-            "connection_type": r[13] if isinstance(r, (tuple, list)) else r['connection_type'],
-            "webview_version": r[14] if isinstance(r, (tuple, list)) else r['webview_version'],
-            "browser_fingerprint": r[15] if isinstance(r, (tuple, list)) else r['browser_fingerprint'],
-            "mac_address": r[16] if isinstance(r, (tuple, list)) else r['mac_address'],
-            "location": r[17] if isinstance(r, (tuple, list)) else r['location']
+            "activation_count": r[12] if isinstance(r, (tuple, list)) else r['activation_count'],
+            "multi_device_detected": bool(r[13] if isinstance(r, (tuple, list)) else r['multi_device_detected']),
+            "connection_type": r[14] if isinstance(r, (tuple, list)) else r['connection_type'],
+            "webview_version": r[15] if isinstance(r, (tuple, list)) else r['webview_version'],
+            "browser_fingerprint": r[16] if isinstance(r, (tuple, list)) else r['browser_fingerprint'],
+            "mac_address": r[17] if isinstance(r, (tuple, list)) else r['mac_address'],
+            "location": r[18] if isinstance(r, (tuple, list)) else r['location']
         })
 
     return jsonify({"success": True, "licenses": results})
@@ -497,7 +524,7 @@ def admin_telemetry():
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        SELECT id, license_key, device_id, event_type, ip, connection_type, device_model, location, webview_version, browser_fingerprint, created_at
+        SELECT id, license_key, device_id, client_type, event_type, ip, connection_type, device_model, location, webview_version, browser_fingerprint, created_at
         FROM device_telemetry_logs
         ORDER BY created_at DESC
         LIMIT 100
@@ -512,16 +539,42 @@ def admin_telemetry():
             "id": r[0] if isinstance(r, (tuple, list)) else r['id'],
             "license_key": r[1] if isinstance(r, (tuple, list)) else r['license_key'],
             "device_id": r[2] if isinstance(r, (tuple, list)) else r['device_id'],
-            "event_type": r[3] if isinstance(r, (tuple, list)) else r['event_type'],
-            "ip": r[4] if isinstance(r, (tuple, list)) else r['ip'],
-            "connection_type": r[5] if isinstance(r, (tuple, list)) else r['connection_type'],
-            "device_model": r[6] if isinstance(r, (tuple, list)) else r['device_model'],
-            "location": r[7] if isinstance(r, (tuple, list)) else r['location'],
-            "webview_version": r[8] if isinstance(r, (tuple, list)) else r['webview_version'],
-            "browser_fingerprint": r[9] if isinstance(r, (tuple, list)) else r['browser_fingerprint'],
-            "created_at": r[10] if isinstance(r, (tuple, list)) else r['created_at']
+            "client_type": (r[3] if isinstance(r, (tuple, list)) else r['client_type']) or "app",
+            "event_type": r[4] if isinstance(r, (tuple, list)) else r['event_type'],
+            "ip": r[5] if isinstance(r, (tuple, list)) else r['ip'],
+            "connection_type": r[6] if isinstance(r, (tuple, list)) else r['connection_type'],
+            "device_model": r[7] if isinstance(r, (tuple, list)) else r['device_model'],
+            "location": r[8] if isinstance(r, (tuple, list)) else r['location'],
+            "webview_version": r[9] if isinstance(r, (tuple, list)) else r['webview_version'],
+            "browser_fingerprint": r[10] if isinstance(r, (tuple, list)) else r['browser_fingerprint'],
+            "created_at": r[11] if isinstance(r, (tuple, list)) else r['created_at']
         })
     return jsonify({"success": True, "logs": logs})
+
+@app.route("/api/admin/change-password", methods=["POST"])
+@admin_required
+def admin_change_password_api():
+    data = request.get_json(force=True, silent=True) or {}
+    current_pass = data.get("current_password", "").strip()
+    new_pass = data.get("new_password", "").strip()
+    username = session.get("admin_username", "admin")
+
+    if not new_pass or len(new_pass) < 6:
+        return jsonify({"success": False, "message": "كلمة المرور الجديدة يجب أن تحتوي على 6 أحرف على الأقل"}), 400
+
+    ok, msg = change_admin_password(username, current_pass, new_pass)
+    if ok:
+        return jsonify({"success": True, "message": msg})
+    return jsonify({"success": False, "message": msg}), 400
+
+@app.route("/api/admin/toggle-status", methods=["POST"])
+@admin_required
+def admin_toggle_status_api():
+    data = request.get_json(force=True, silent=True) or {}
+    is_active = data.get("is_active", True)
+    username = session.get("admin_username", "admin")
+    ok, msg = toggle_admin_account_status(username, is_active)
+    return jsonify({"success": ok, "message": msg})
 
 # Initialize DB and Admin on startup
 init_db()

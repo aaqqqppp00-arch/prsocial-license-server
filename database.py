@@ -33,6 +33,8 @@ def init_db():
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(100) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
+                is_active BOOLEAN DEFAULT TRUE,
+                last_login VARCHAR(30),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
@@ -41,6 +43,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS licenses (
                 key VARCHAR(64) PRIMARY KEY,
                 duration_type VARCHAR(20) DEFAULT 'lifetime',
+                client_type VARCHAR(32) DEFAULT 'app',
                 created_at VARCHAR(30),
                 expires_at VARCHAR(30),
                 status VARCHAR(20) DEFAULT 'active',
@@ -66,6 +69,7 @@ def init_db():
                 id SERIAL PRIMARY KEY,
                 license_key VARCHAR(64),
                 device_id VARCHAR(100),
+                client_type VARCHAR(32) DEFAULT 'app',
                 event_type VARCHAR(50),
                 ip VARCHAR(50),
                 connection_type VARCHAR(50),
@@ -76,6 +80,12 @@ def init_db():
                 created_at VARCHAR(30)
             );
         """)
+
+        # Postgres migrations
+        cur.execute("ALTER TABLE licenses ADD COLUMN IF NOT EXISTS client_type VARCHAR(32) DEFAULT 'app';")
+        cur.execute("ALTER TABLE device_telemetry_logs ADD COLUMN IF NOT EXISTS client_type VARCHAR(32) DEFAULT 'app';")
+        cur.execute("ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;")
+        cur.execute("ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS last_login VARCHAR(30);")
     else:
         # SQLite Schema
         cur.execute("""
@@ -83,6 +93,8 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
+                is_active INTEGER DEFAULT 1,
+                last_login TEXT,
                 created_at TEXT
             );
         """)
@@ -91,6 +103,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS licenses (
                 key TEXT PRIMARY KEY,
                 duration_type TEXT DEFAULT 'lifetime',
+                client_type TEXT DEFAULT 'app',
                 created_at TEXT,
                 expires_at TEXT,
                 status TEXT DEFAULT 'active',
@@ -116,6 +129,7 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 license_key TEXT,
                 device_id TEXT,
+                client_type TEXT DEFAULT 'app',
                 event_type TEXT,
                 ip TEXT,
                 connection_type TEXT,
@@ -127,11 +141,12 @@ def init_db():
             );
         """)
 
-        # Auto-migrate any missing columns in existing SQLite table
+        # Auto-migrate any missing columns in existing SQLite tables
         cur.execute("PRAGMA table_info(licenses)")
         existing_cols = [r[1] for r in cur.fetchall()]
         required_cols = [
             ("duration_type", "TEXT DEFAULT 'lifetime'"),
+            ("client_type", "TEXT DEFAULT 'app'"),
             ("is_tested", "INTEGER DEFAULT 0"),
             ("is_online", "INTEGER DEFAULT 0"),
             ("last_heartbeat", "TEXT"),
@@ -148,9 +163,31 @@ def init_db():
             if col_name not in existing_cols:
                 try:
                     cur.execute(f"ALTER TABLE licenses ADD COLUMN {col_name} {col_def}")
-                    print(f"[Database Migration] Added column: {col_name}")
+                    print(f"[Database Migration] Added licenses column: {col_name}")
                 except Exception as e:
                     print(f"[Database Migration] Column {col_name} notice: {e}")
+
+        cur.execute("PRAGMA table_info(device_telemetry_logs)")
+        existing_telem_cols = [r[1] for r in cur.fetchall()]
+        if "client_type" not in existing_telem_cols:
+            try:
+                cur.execute("ALTER TABLE device_telemetry_logs ADD COLUMN client_type TEXT DEFAULT 'app'")
+                print("[Database Migration] Added device_telemetry_logs column: client_type")
+            except Exception as e:
+                print(f"[Database Migration] Telemetry column notice: {e}")
+
+        cur.execute("PRAGMA table_info(admin_users)")
+        existing_admin_cols = [r[1] for r in cur.fetchall()]
+        if "is_active" not in existing_admin_cols:
+            try:
+                cur.execute("ALTER TABLE admin_users ADD COLUMN is_active INTEGER DEFAULT 1")
+            except Exception:
+                pass
+        if "last_login" not in existing_admin_cols:
+            try:
+                cur.execute("ALTER TABLE admin_users ADD COLUMN last_login TEXT")
+            except Exception:
+                pass
 
     conn.commit()
     cur.close()
