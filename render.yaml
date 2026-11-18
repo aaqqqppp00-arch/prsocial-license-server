@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: prsocial-license-server
+    runtime: python
+    region: frankfurt
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT server:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: HMAC_SECRET
+        value: PRSC_2026_MASTER_SHIELD_AUTH_KEY_98374
+      - key: CRYPTO_VALIDATOR_SALT
+        value: PRSC_CRYPTO_CORE_VALIDATOR_SALT_2026_X99
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        value: Admin@PRSocial2026!
