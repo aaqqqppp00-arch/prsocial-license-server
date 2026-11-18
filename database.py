@@ -127,6 +127,31 @@ def init_db():
             );
         """)
 
+        # Auto-migrate any missing columns in existing SQLite table
+        cur.execute("PRAGMA table_info(licenses)")
+        existing_cols = [r[1] for r in cur.fetchall()]
+        required_cols = [
+            ("duration_type", "TEXT DEFAULT 'lifetime'"),
+            ("is_tested", "INTEGER DEFAULT 0"),
+            ("is_online", "INTEGER DEFAULT 0"),
+            ("last_heartbeat", "TEXT"),
+            ("activation_count", "INTEGER DEFAULT 0"),
+            ("multi_device_detected", "INTEGER DEFAULT 0"),
+            ("connection_type", "TEXT DEFAULT 'Unknown'"),
+            ("webview_version", "TEXT DEFAULT 'Unknown'"),
+            ("browser_user_agent", "TEXT"),
+            ("browser_fingerprint", "TEXT"),
+            ("mac_address", "TEXT"),
+            ("location", "TEXT DEFAULT 'Unknown'")
+        ]
+        for col_name, col_def in required_cols:
+            if col_name not in existing_cols:
+                try:
+                    cur.execute(f"ALTER TABLE licenses ADD COLUMN {col_name} {col_def}")
+                    print(f"[Database Migration] Added column: {col_name}")
+                except Exception as e:
+                    print(f"[Database Migration] Column {col_name} notice: {e}")
+
     conn.commit()
     cur.close()
     conn.close()
