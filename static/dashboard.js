@@ -578,3 +578,82 @@ async function handlePasswordChange(e) {
         submitBtn.innerText = 'تحديث وتشفير كلمة المرور فوراً';
     }
 }
+
+// --- Script Release & Version Management ---
+async function loadScriptVersionConfig() {
+    try {
+        const res = await fetch('/api/admin/script/config');
+        const data = await res.json();
+        if (data.success && data.config) {
+            const cfg = data.config;
+            const lbl = document.getElementById('lblCurrentVer');
+            if (lbl) {
+                lbl.innerText = `v${cfg.version_name || '2.0.0'} (Build ${cfg.version_code || 200})${cfg.update_required ? ' [إلزامي]' : ''}`;
+            }
+            const vcInput = document.getElementById('scVersionCode');
+            if (vcInput && !vcInput.dataset.touched) {
+                vcInput.value = (cfg.version_code || 200) + 1;
+            }
+            const vnInput = document.getElementById('scVersionName');
+            if (vnInput && !vnInput.dataset.touched) {
+                const parts = (cfg.version_name || '2.0.0').split('.');
+                if (parts.length === 3) {
+                    vnInput.value = `${parts[0]}.${parts[1]}.${parseInt(parts[2]) + 1}`;
+                }
+            }
+            const enf = document.getElementById('scEnforce');
+            if (enf) enf.checked = cfg.update_required !== false;
+            const notes = document.getElementById('scNotes');
+            if (notes && !notes.dataset.touched && cfg.release_notes) {
+                notes.value = cfg.release_notes;
+            }
+        }
+    } catch(e) {
+        console.error("Error loading script version config:", e);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadScriptVersionConfig();
+
+    const form = document.getElementById('scriptPublishForm');
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnPublishUpdate');
+            btn.disabled = true;
+            btn.innerText = 'جاري النشر والتشفير...';
+
+            const formData = new FormData();
+            formData.append('version_code', document.getElementById('scVersionCode').value);
+            formData.append('version_name', document.getElementById('scVersionName').value);
+            formData.append('release_notes', document.getElementById('scNotes').value);
+            formData.append('enforce_update', document.getElementById('scEnforce').checked ? 'true' : 'false');
+
+            const fileInput = document.getElementById('scFile');
+            if (fileInput && fileInput.files[0]) {
+                formData.append('script_file', fileInput.files[0]);
+            }
+
+            try {
+                const res = await fetch('/api/admin/script/publish', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('🚀 ' + data.message);
+                    loadScriptVersionConfig();
+                    if (fileInput) fileInput.value = '';
+                } else {
+                    alert('خطأ: ' + (data.message || 'فشل نشر التحديث'));
+                }
+            } catch(err) {
+                alert('خطأ في الاتصال: ' + err.toString());
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '🚀 نشر وتعميم التحديث (Broadcast Update)';
+            }
+        });
+    }
+});

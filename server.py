@@ -5,7 +5,7 @@ import hmac
 import hashlib
 import urllib.request
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for, send_from_directory
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, send_from_directory, send_file
 from werkzeug.security import generate_password_hash
 
 from database import get_connection, is_postgres, init_db
@@ -71,6 +71,31 @@ def sign_response(license_key, device_id, status, is_success):
     sig = hmac.new(HMAC_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
     return ts, sig
 
+# --- Script Distribution & Live Version Management ---
+SCRIPT_VERSION_FILE = os.path.join(os.path.dirname(__file__), "script_version.json")
+SCRIPT_DIST_DIR = os.path.join(os.path.dirname(__file__), "script_dist")
+os.makedirs(SCRIPT_DIST_DIR, exist_ok=True)
+
+def get_script_version_config():
+    if os.path.exists(SCRIPT_VERSION_FILE):
+        try:
+            with open(SCRIPT_VERSION_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {
+        "version_code": 200,
+        "version_name": "2.0.0",
+        "min_required_version": 200,
+        "update_required": False,
+        "release_notes": "الإصدار الرسمي المستقر v2.0.0",
+        "filename": "PRSocial_Engine_Protected.py"
+    }
+
+def save_script_version_config(cfg):
+    with open(SCRIPT_VERSION_FILE, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, indent=2, ensure_ascii=False)
+
 # --- App API Endpoints ---
 
 @app.route("/api/license/verify", methods=["POST"])
@@ -121,8 +146,26 @@ def verify_license():
             conn.commit()
             cur.close()
             conn.close()
+            ver_cfg = get_script_version_config()
+            client_ver = int(data.get("version_code") or 200)
+            latest_code = int(ver_cfg.get("version_code", 200))
+            min_required = int(ver_cfg.get("min_required_version", 200))
+            update_req = bool((ver_cfg.get("update_required", False) and client_ver < latest_code) or (client_ver < min_required))
+
             ts, sig = sign_response(license_key, device_id, "activated_and_bound", True)
-            return jsonify({"success": True, "status": "activated_and_bound", "expires_at": "2099-12-31", "message": "تم تفعيل الترخيص بنجاح!", "timestamp": ts, "signature": sig})
+            return jsonify({
+                "success": True,
+                "status": "activated_and_bound",
+                "expires_at": "2099-12-31",
+                "message": "تم تفعيل الترخيص بنجاح!",
+                "update_required": update_req,
+                "latest_version_code": latest_code,
+                "latest_version_name": ver_cfg.get("version_name", "2.0.0"),
+                "min_required_version": min_required,
+                "release_notes": ver_cfg.get("release_notes", "تحديث أمني إلزامي وتحسينات سرعة التنفيذ"),
+                "timestamp": ts,
+                "signature": sig
+            })
         else:
             cur.close()
             conn.close()
@@ -214,12 +257,23 @@ def verify_license():
     cur.close()
     conn.close()
 
+    ver_cfg = get_script_version_config()
+    client_ver = int(data.get("version_code") or 200)
+    latest_code = int(ver_cfg.get("version_code", 200))
+    min_required = int(ver_cfg.get("min_required_version", 200))
+    update_req = bool((ver_cfg.get("update_required", False) and client_ver < latest_code) or (client_ver < min_required))
+
     ts, sig = sign_response(license_key, device_id, "active", True)
     return jsonify({
         "success": True,
         "status": "active",
         "expires_at": expires_at or "2099-12-31",
         "message": "تم تفعيل الترخيص بنجاح!",
+        "update_required": update_req,
+        "latest_version_code": latest_code,
+        "latest_version_name": ver_cfg.get("version_name", "2.0.0"),
+        "min_required_version": min_required,
+        "release_notes": ver_cfg.get("release_notes", "تحديث أمني إلزامي وتحسينات سرعة التنفيذ"),
         "timestamp": ts,
         "signature": sig
     })
@@ -255,22 +309,111 @@ def license_heartbeat():
 
     # Update heartbeat
     cur.execute("""
-        UPDATE licenses SET last_heartbeat = %s, is_online = %s WHERE key = %s
+        UPDATE licenses SET last_heartbeat = %s, is_online = %s, bound_ip = %s WHERE key = %s
     """ if is_postgres() else """
-        UPDATE licenses SET last_heartbeat = ?, is_online = 1 WHERE key = ?
-    """, (now_str, True, license_key) if is_postgres() else (now_str, license_key))
+        UPDATE licenses SET last_heartbeat = ?, is_online = 1, bound_ip = ? WHERE key = ?
+    """, (now_str, True, client_ip, license_key) if is_postgres() else (now_str, client_ip, license_key))
     conn.commit()
     cur.close()
     conn.close()
 
-    return jsonify({"success": True, "status": "active", "timestamp": int(time.time())})
+    # Script version check
+    ver_cfg = get_script_version_config()
+    client_ver = int(data.get("version_code") or 200)
+    latest_code = int(ver_cfg.get("version_code", 200))
+    min_required = int(ver_cfg.get("min_required_version", 200))
+    update_req = bool((ver_cfg.get("update_required", False) and client_ver < latest_code) or (client_ver < min_required))
 
-    cur.execute("UPDATE licenses SET is_online = %s, last_heartbeat = %s, bound_ip = %s WHERE key = %s" if is_postgres() else "UPDATE licenses SET is_online = ?, last_heartbeat = ?, bound_ip = ? WHERE key = ?", (True if is_postgres() else 1, now_str, client_ip, license_key))
-    conn.commit()
+    return jsonify({
+        "success": True,
+        "status": "active",
+        "update_required": update_req,
+        "latest_version_code": latest_code,
+        "latest_version_name": ver_cfg.get("version_name", "2.0.0"),
+        "min_required_version": min_required,
+        "release_notes": ver_cfg.get("release_notes", "تحديث أمني إلزامي وتحسينات سرعة التنفيذ"),
+        "timestamp": int(time.time())
+    })
+
+@app.route("/api/shield/sync", methods=["POST"])
+def sync_script_binary():
+    data = request.get_json(force=True, silent=True) or {}
+    license_key = (data.get("license_key") or "").strip().upper()
+    device_id = (data.get("device_id") or "").strip()
+    
+    if not license_key:
+        return jsonify({"success": False, "message": "Unauthorized"}), 401
+
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT status FROM licenses WHERE key = %s" if is_postgres() else "SELECT status FROM licenses WHERE key = ?", (license_key,))
+    row = cur.fetchone()
     cur.close()
     conn.close()
 
-    return jsonify({"success": True, "status": "active", "timestamp": int(time.time())})
+    if not row:
+        return jsonify({"success": False, "message": "Unauthorized"}), 401
+
+    status = row[0] if isinstance(row, (tuple, list)) else row['status']
+    if status in ("revoked", "blocked", "expired"):
+        return jsonify({"success": False, "message": "Forbidden"}), 403
+
+    ver_cfg = get_script_version_config()
+    target_path = os.path.join(SCRIPT_DIST_DIR, "PRSocial_Engine_Protected.py")
+    if not os.path.exists(target_path):
+        fallback = "/home/kali/prsocial_release/PRSocial_Engine_Protected.py"
+        if os.path.exists(fallback):
+            target_path = fallback
+        else:
+            return jsonify({"success": False, "message": "Update binary not found"}), 404
+
+    with open(target_path, "rb") as f:
+        content = f.read()
+
+    sha256 = hashlib.sha256(content).hexdigest()
+    sig = hmac.new(HMAC_SECRET.encode(), content, hashlib.sha256).hexdigest()
+
+    response = app.response_class(content, mimetype="application/octet-stream")
+    response.headers["X-Checksum-SHA256"] = sha256
+    response.headers["X-Payload-Signature"] = sig
+    response.headers["Content-Disposition"] = "attachment; filename=PRSocial_Engine_Protected.py"
+    return response
+
+@app.route("/api/admin/script/config", methods=["GET"])
+@admin_required
+def admin_get_script_config():
+    return jsonify({"success": True, "config": get_script_version_config()})
+
+@app.route("/api/admin/script/publish", methods=["POST"])
+@admin_required
+def admin_publish_script():
+    try:
+        version_code = int(request.form.get("version_code") or 201)
+        version_name = (request.form.get("version_name") or "2.0.1").strip()
+        release_notes = (request.form.get("release_notes") or "تحديث أمني إلزامي وتحسينات سرعة التنفيذ").strip()
+        enforce_update = request.form.get("enforce_update", "true").lower() in ("true", "1", "yes", "on")
+
+        file_updated = False
+        uploaded_file = request.files.get("script_file")
+        if uploaded_file and uploaded_file.filename:
+            save_path = os.path.join(SCRIPT_DIST_DIR, "PRSocial_Engine_Protected.py")
+            uploaded_file.save(save_path)
+            file_updated = True
+
+        cfg = {
+            "version_code": version_code,
+            "version_name": version_name,
+            "min_required_version": version_code if enforce_update else 200,
+            "update_required": enforce_update,
+            "release_notes": release_notes,
+            "filename": "PRSocial_Engine_Protected.py",
+            "file_updated": file_updated,
+            "updated_at": time.strftime("%Y-%m-%d %H:%M:%S")
+        }
+        save_script_version_config(cfg)
+        return jsonify({"success": True, "message": f"تم نشر التحديث v{version_name} (Build {version_code}) وبثه بنجاح!"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route("/api/app/version", methods=["GET"])
 def app_version():
