@@ -14,17 +14,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 15000);
 
     // Event listeners
-    document.getElementById('btnGenerateKey').addEventListener('click', generateKey);
-    document.getElementById('btnRefreshList').addEventListener('click', () => loadLicenses());
-    document.getElementById('btnRefreshTelemetry').addEventListener('click', () => loadTelemetry());
-    document.getElementById('searchInput').addEventListener('input', handleSearch);
+    const btnGen = document.getElementById('btnGenerateKey');
+    if (btnGen) btnGen.addEventListener('click', generateKey);
+
+    const btnRefList = document.getElementById('btnRefreshList');
+    if (btnRefList) btnRefList.addEventListener('click', () => loadLicenses());
+
+    const btnRefTelem = document.getElementById('btnRefreshTelemetry');
+    if (btnRefTelem) btnRefTelem.addEventListener('click', () => loadTelemetry());
+
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.addEventListener('input', handleSearch);
 
     // Filter tabs
-    document.querySelectorAll('.filter-tab').forEach(tab => {
+    document.querySelectorAll('.filter-tab, .filter-tab-btn').forEach(tab => {
         tab.addEventListener('click', (e) => {
-            document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-            e.target.classList.add('active');
-            activeFilter = e.target.getAttribute('data-filter');
+            document.querySelectorAll('.filter-tab, .filter-tab-btn').forEach(t => t.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            activeFilter = e.currentTarget.getAttribute('data-filter');
             renderLicensesTable();
         });
     });
@@ -32,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function showToast(msg) {
     const toast = document.getElementById('adminToast');
+    if (!toast) return;
     toast.innerText = msg;
     toast.style.display = 'block';
     setTimeout(() => {
@@ -44,10 +52,10 @@ async function loadStats() {
         const res = await fetch('/api/admin/stats');
         const data = await res.json();
         if (data.success) {
-            document.getElementById('statTotal').innerText = data.total;
-            document.getElementById('statOnline').innerText = data.active;
-            document.getElementById('statRevoked').innerText = data.revoked;
-            document.getElementById('statMultiDevice').innerText = data.multi_device;
+            document.getElementById('statTotal').innerText = data.total ?? 0;
+            document.getElementById('statOnline').innerText = data.active ?? 0;
+            document.getElementById('statRevoked').innerText = data.revoked ?? 0;
+            document.getElementById('statMultiDevice').innerText = data.multi_device ?? 0;
         }
     } catch (e) {
         console.error('Failed to load stats:', e);
@@ -56,8 +64,9 @@ async function loadStats() {
 
 async function loadLicenses(silent = false) {
     const tbody = document.getElementById('licensesTableBody');
+    if (!tbody) return;
     if (!silent) {
-        tbody.innerHTML = '<tr><td colspan="9" class="loading-td">جاري تحميل وتحديث المفاتيح من السيرفر...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="loading-td">جاري تحميل وتحديث المفاتيح من السيرفر...</td></tr>';
     }
 
     try {
@@ -67,11 +76,11 @@ async function loadLicenses(silent = false) {
             allLicenses = data.licenses || [];
             renderLicensesTable();
         } else {
-            if (!silent) tbody.innerHTML = '<tr><td colspan="9" class="loading-td">تعذر جلب البيانات.</td></tr>';
+            if (!silent) tbody.innerHTML = '<tr><td colspan="10" class="loading-td">تعذر جلب البيانات.</td></tr>';
         }
     } catch (e) {
         console.error('Failed to load licenses:', e);
-        if (!silent) tbody.innerHTML = '<tr><td colspan="9" class="loading-td">خطأ في الاتصال بقاعدة البيانات.</td></tr>';
+        if (!silent) tbody.innerHTML = '<tr><td colspan="10" class="loading-td">خطأ في الاتصال بقاعدة البيانات.</td></tr>';
     }
 }
 
@@ -81,7 +90,8 @@ function handleSearch(e) {
 
 function renderLicensesTable() {
     const tbody = document.getElementById('licensesTableBody');
-    const query = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+    if (!tbody) return;
+    const query = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
 
     let filtered = allLicenses.filter(item => {
         // Tab filtering
@@ -104,69 +114,72 @@ function renderLicensesTable() {
     });
 
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="loading-td">لا توجد مفاتيح مطابقة للمعايير المحددة.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="loading-td">لا توجد أي مفاتيح ترخيص حالياً - يمكنك إنشاء مفتاح جديد من الأعلى للبدء من الصفر.</td></tr>';
         return;
     }
 
     tbody.innerHTML = filtered.map(item => {
         let statusBadge = '';
-        if (item.status === 'active') statusBadge = '<span class="badge badge-active">نشط (Active)</span>';
-        else if (item.status === 'revoked') statusBadge = '<span class="badge badge-revoked">ملغى (Revoked)</span>';
-        else if (item.status === 'blocked') statusBadge = '<span class="badge badge-blocked">محظور (Blocked)</span>';
-        else if (item.status === 'expired') statusBadge = '<span class="badge badge-expired">منتهي (Expired)</span>';
+        if (item.status === 'active') statusBadge = '<span class="badge-chip chip-active">نشط (Active)</span>';
+        else if (item.status === 'revoked') statusBadge = '<span class="badge-chip chip-revoked">ملغى (Revoked)</span>';
+        else if (item.status === 'blocked') statusBadge = '<span class="badge-chip chip-blocked">محظور (Blocked)</span>';
+        else if (item.status === 'expired') statusBadge = '<span class="badge-chip chip-expired">منتهي (Expired)</span>';
 
         const testedBadge = item.is_tested
-            ? '<span class="badge badge-online">تمت التجربة</span>'
-            : '<span class="badge badge-offline">جديد لم يُجرب</span>';
+            ? '<span class="badge-chip chip-online">تمت التجربة</span>'
+            : '<span class="badge-chip chip-offline">جديد لم يُجرب</span>';
 
         const onlineBadge = item.is_online
-            ? '<span class="badge badge-online">🟢 متصل الآن</span>'
-            : `<span class="badge badge-offline">⚫ غير متصل (${item.last_heartbeat ? item.last_heartbeat.split(' ')[1] || item.last_heartbeat : 'لم يتصل'})</span>`;
+            ? '<span class="badge-chip chip-online">🟢 متصل الآن</span>'
+            : `<span class="badge-chip chip-offline">⚫ غير متصل (${item.last_heartbeat ? item.last_heartbeat.split(' ')[1] || item.last_heartbeat : 'لم يتصل'})</span>`;
 
         const fraudWarning = item.multi_device_detected
-            ? '<span class="badge badge-fraud" title="تم فتح المفتاح على أكثر من جهاز عتادي!">⚠️ تعدد أجهزة!</span>'
+            ? '<span class="badge-chip chip-fraud" title="تم فتح المفتاح على أكثر من جهاز عتادي!">⚠️ تعدد أجهزة!</span>'
             : '';
 
         const deviceDisplay = item.bound_device_id
-            ? `<strong>${item.device_model || 'Android'}</strong><br><code class="code-snippet">${item.bound_device_id.substring(0, 14)}...</code>`
+            ? `<strong>${item.device_model || 'Android'}</strong><br><code style="font-family:monospace; font-size:11px; background:#F3F4F7; padding:2px 4px; border:1px solid #1A1B22;">${item.bound_device_id.substring(0, 14)}...</code>`
             : '<span style="color:#9CA3AF;">غير مربوط بجهاز</span>';
 
         const netDisplay = item.bound_ip
-            ? `<span style="font-family:monospace;">${item.bound_ip}</span><br><span style="font-size:11px; color:#4B5563;">[${item.connection_type || 'WiFi'}]</span>`
+            ? `<span style="font-family:monospace; font-size:12px; font-weight:700;">${item.bound_ip}</span><br><span style="font-size:11px; color:#4A4D5A;">[${item.connection_type || 'WiFi'}]</span>`
             : '<span style="color:#9CA3AF;">--</span>';
 
         const clientBadge = (item.client_type === 'script')
-            ? '<span class="badge" style="background:#7C3AED; color:#FFFFFF; font-weight:600;">💻 سكربت بايثون</span>'
-            : '<span class="badge" style="background:#0284C7; color:#FFFFFF; font-weight:600;">📱 تطبيق أندرويد</span>';
+            ? '<span class="badge-chip" style="background:#EDE9FE; color:#6D28D9; border:1px solid #C4B5FD;">💻 ويندوز / سكربت</span>'
+            : '<span class="badge-chip" style="background:#E0F2FE; color:#0369A1; border:1px solid #BAE6FD;">📱 تطبيق أندرويد</span>';
 
         return `
             <tr>
                 <td>
-                    <code class="code-snippet">${item.key}</code>
-                    <button class="btn btn-outline btn-sm" style="padding: 2px 6px; font-size:11px;" onclick="copyKey('${item.key}')">نسخ</button>
+                    <code style="font-family:monospace; font-size:13px; font-weight:700; background:#F3F4F7; padding:2px 6px; border:1px solid #1A1B22; display:inline-block; margin-bottom:4px;">${item.key}</code>
+                    <br>
+                    <button class="btn-action-small" onclick="copyKey('${item.key}')">نسخ 📋</button>
                     ${fraudWarning}
                 </td>
                 <td>${clientBadge}</td>
                 <td>${statusBadge}</td>
                 <td>
-                    <strong>${formatDuration(item.duration_type)}</strong><br>
-                    <span style="font-size:11px; color:#6B7280;">ينتهي: ${item.expires_at}</span>
+                    <strong>${formatDuration(item.duration_type)}</strong>
+                    <div style="font-size:11px; color:#4A4D5A;">ينتهي: ${item.expires_at}</div>
                 </td>
                 <td>${testedBadge}</td>
                 <td>${onlineBadge}</td>
                 <td>${deviceDisplay}</td>
                 <td>${netDisplay}</td>
-                <td>${item.location || 'غير محدد'}</td>
                 <td>
-                    <div class="table-ops">
-                        <button class="btn btn-outline btn-sm" onclick="showKeyDetails('${item.key}')">التفاصيل 🔍</button>
+                    <span style="font-size:12px; font-weight:600;">${item.location || 'غير محدد'}</span>
+                </td>
+                <td>
+                    <div class="action-btn-group">
+                        <button class="btn-action-small" onclick="showKeyDetails('${item.key}')">تفاصيل</button>
                         ${item.status === 'active' ? `
-                            <button class="btn btn-outline btn-sm" style="color:#DC2626; border-color:#FCA5A5;" onclick="revokeKey('${item.key}')">إلغاء</button>
-                            <button class="btn btn-danger btn-sm" onclick="blockKey('${item.key}')">حظر</button>
+                            <button class="btn-action-small btn-action-revoke" onclick="revokeKey('${item.key}')">إلغاء</button>
+                            <button class="btn-action-small btn-action-revoke" onclick="blockKey('${item.key}')">حظر</button>
                         ` : `
-                            <button class="btn btn-primary btn-sm" onclick="activateKey('${item.key}')">تنشيط</button>
+                            <button class="btn-action-small btn-action-activate" onclick="activateKey('${item.key}')">تنشيط</button>
                         `}
-                        <button class="btn btn-outline btn-sm" style="color:#991B1B;" onclick="deleteKey('${item.key}')">حذف</button>
+                        <button class="btn-action-small btn-action-delete" onclick="deleteKey('${item.key}')">حذف</button>
                     </div>
                 </td>
             </tr>
@@ -177,6 +190,7 @@ function renderLicensesTable() {
 function formatDuration(type) {
     if (type === 'week') return 'أسبوع (7 أيام)';
     if (type === 'month') return 'شهر (30 يوم)';
+    if (type === 'quarter') return '3 شهور (90 يوم)';
     if (type === 'year') return 'سنة (365 يوم)';
     return 'مدى الحياة (Lifetime)';
 }
@@ -194,20 +208,21 @@ function copyNewKey() {
 
 async function generateKey() {
     const duration = document.getElementById('selectDuration').value;
+    const clientType = document.getElementById('selectClientType') ? document.getElementById('selectClientType').value : 'app';
     const btn = document.getElementById('btnGenerateKey');
     btn.disabled = true;
-    btn.innerText = 'جاري التوليد والحفظ في السيرفر...';
+    btn.innerHTML = '<span>جاري التوليد والحفظ في السيرفر...</span>';
 
     try {
         const res = await fetch('/api/admin/licenses/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ duration })
+            body: JSON.stringify({ duration, client_type: clientType })
         });
         const data = await res.json();
         if (data.success) {
             document.getElementById('newKeyCode').innerText = data.key;
-            document.getElementById('newKeyMeta').innerText = `(${data.duration_label} - ينتهي: ${data.expires_at})`;
+            document.getElementById('newKeyMeta').innerText = `(${data.duration_label} - ينتهي: ${data.expires_at} - ${data.client_type === 'script' ? 'ويندوز/سكربت' : 'أندرويد'})`;
             document.getElementById('newKeyBanner').style.display = 'flex';
             showToast(data.message);
             loadStats();
@@ -219,7 +234,12 @@ async function generateKey() {
         alert('خطأ في الاتصال بالسيرفر أثناء التوليد');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<span>⚡</span><span>توليد وحفظ المفتاح فوراً</span>';
+        btn.innerHTML = `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#1A1B22" aria-hidden="true">
+                <path d="M13 2L5 13.5h6L10 22l9-12h-6z"></path>
+            </svg>
+            <span>توليد وحفظ المفتاح فوراً</span>
+        `;
     }
 }
 
@@ -298,56 +318,57 @@ function showKeyDetails(key) {
     document.getElementById('modalTitle').innerText = `تفاصيل العتاد والتتبع للمفتاح: ${item.key}`;
     const body = document.getElementById('modalBody');
     body.innerHTML = `
-        <div class="detail-row">
-            <div class="detail-label">مفتاح الترخيص:</div>
-            <div class="detail-val"><code class="code-snippet">${item.key}</code></div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">الحالة والصلاحية:</div>
-            <div class="detail-val">${item.status} (${formatDuration(item.duration_type)}) - ينتهي: ${item.expires_at}</div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">معرف الجهاز (Device ID):</div>
-            <div class="detail-val"><code class="code-snippet">${item.bound_device_id || 'غير مربوط'}</code></div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">موديل الهاتف والعتاد:</div>
-            <div class="detail-val"><strong>${item.device_model || 'Unknown'}</strong></div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">نوع الاتصال بالإنترنت:</div>
-            <div class="detail-val"><strong>${item.connection_type || 'WiFi'}</strong></div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">عنوان IP والموقع:</div>
-            <div class="detail-val">${item.bound_ip || 'غير معروف'} - <em>${item.location || 'غير محدد'}</em></div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">إصدار Android WebView:</div>
-            <div class="detail-val">${item.webview_version || 'Android System WebView'}</div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">بصمة المتصفح (Fingerprint):</div>
-            <div class="detail-val"><code class="code-snippet">${item.browser_fingerprint || 'غير متوفرة'}</code></div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">عنوان العتاد (MAC / UID):</div>
-            <div class="detail-val"><code class="code-snippet">${item.mac_address || 'محمي بواسطة أندرويد'}</code></div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">عدد مرات التفعيل (Activations):</div>
-            <div class="detail-val">${item.activation_count} مرات</div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">آخر Heartbeat مسجل:</div>
-            <div class="detail-val">${item.last_heartbeat || 'لم يتصل بعد'}</div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">تنبيه الاحتيال وتعدد الأجهزة:</div>
-            <div class="detail-val">${item.multi_device_detected ? '<span style="color:#DC2626; font-weight:bold;">⚠️ تم رصد محاولة تشغيل على أكثر من جهاز!</span>' : '<span style="color:#16A34A;">✔ آمن - مربوط بجهاز واحد فقط</span>'}</div>
+        <div style="display:flex; flex-direction:column; gap:12px; font-size:14px;">
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #E5E7EB; padding-bottom:8px;">
+                <span style="font-weight:700; color:#4A4D5A;">مفتاح الترخيص:</span>
+                <code style="font-family:monospace; font-weight:800; background:#F3F4F7; padding:2px 8px; border:1px solid #1A1B22;">${item.key}</code>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #E5E7EB; padding-bottom:8px;">
+                <span style="font-weight:700; color:#4A4D5A;">الحالة والصلاحية:</span>
+                <span><strong>${item.status}</strong> (${formatDuration(item.duration_type)}) - ينتهي: ${item.expires_at}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #E5E7EB; padding-bottom:8px;">
+                <span style="font-weight:700; color:#4A4D5A;">نوع العميل المخصص:</span>
+                <span>${item.client_type === 'script' ? '💻 ويندوز / سكربت' : '📱 تطبيق أندرويد'}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #E5E7EB; padding-bottom:8px;">
+                <span style="font-weight:700; color:#4A4D5A;">معرف الجهاز (Device ID):</span>
+                <code style="font-family:monospace; font-size:12px; background:#F3F4F7; padding:2px 6px;">${item.bound_device_id || 'غير مربوط حتى الآن'}</code>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #E5E7EB; padding-bottom:8px;">
+                <span style="font-weight:700; color:#4A4D5A;">موديل الهاتف والعتاد:</span>
+                <span><strong>${item.device_model || 'Unknown'}</strong></span>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #E5E7EB; padding-bottom:8px;">
+                <span style="font-weight:700; color:#4A4D5A;">نوع الاتصال بالإنترنت:</span>
+                <span><strong>${item.connection_type || 'WiFi'}</strong></span>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #E5E7EB; padding-bottom:8px;">
+                <span style="font-weight:700; color:#4A4D5A;">عنوان IP والموقع:</span>
+                <span>${item.bound_ip || 'غير معروف'} - <em>${item.location || 'غير محدد'}</em></span>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #E5E7EB; padding-bottom:8px;">
+                <span style="font-weight:700; color:#4A4D5A;">إصدار Android WebView:</span>
+                <span>${item.webview_version || 'Android System WebView'}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #E5E7EB; padding-bottom:8px;">
+                <span style="font-weight:700; color:#4A4D5A;">بصمة المتصفح (Fingerprint):</span>
+                <code style="font-family:monospace; font-size:11px; max-width:280px; overflow:hidden; text-overflow:ellipsis; display:inline-block;">${item.browser_fingerprint || 'غير متوفرة'}</code>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #E5E7EB; padding-bottom:8px;">
+                <span style="font-weight:700; color:#4A4D5A;">عدد مرات التفعيل (Activations):</span>
+                <span>${item.activation_count || 0} مرات</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #E5E7EB; padding-bottom:8px;">
+                <span style="font-weight:700; color:#4A4D5A;">آخر Heartbeat مسجل:</span>
+                <span>${item.last_heartbeat || 'لم يتصل بعد'}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding-top:4px;">
+                <span style="font-weight:700; color:#4A4D5A;">تنبيه الاحتيال وتعدد الأجهزة:</span>
+                <span>${item.multi_device_detected ? '<span style="color:#DC2626; font-weight:800;">⚠️ تم رصد محاولة تشغيل على أكثر من جهاز!</span>' : '<span style="color:#16A34A; font-weight:700;">✔ آمن - مربوط بجهاز واحد فقط</span>'}</span>
+            </div>
         </div>
     `;
-
     document.getElementById('detailsModal').style.display = 'flex';
 }
 
@@ -357,6 +378,7 @@ function closeModal() {
 
 async function loadTelemetry(silent = false) {
     const tbody = document.getElementById('telemetryTableBody');
+    if (!tbody) return;
     if (!silent) {
         tbody.innerHTML = '<tr><td colspan="9" class="loading-td">جاري تحديث سجل التتبع اللحظي...</td></tr>';
     }
@@ -367,25 +389,25 @@ async function loadTelemetry(silent = false) {
         if (data.success && data.logs && data.logs.length > 0) {
             tbody.innerHTML = data.logs.map(log => {
                 const clientTypeBadge = (log.client_type === 'script')
-                    ? '<span class="badge" style="background:#7C3AED; color:#FFF; font-size:10px;">💻 سكربت</span>'
-                    : '<span class="badge" style="background:#0284C7; color:#FFF; font-size:10px;">📱 تطبيق</span>';
+                    ? '<span class="badge-chip" style="background:#EDE9FE; color:#6D28D9; font-size:11px;">💻 سكربت</span>'
+                    : '<span class="badge-chip" style="background:#E0F2FE; color:#0369A1; font-size:11px;">📱 تطبيق</span>';
 
                 return `
                     <tr>
-                        <td style="font-size:11px; white-space:nowrap;">${log.created_at || '--'}</td>
+                        <td style="font-size:12px; font-weight:600; white-space:nowrap;">${log.created_at || '--'}</td>
                         <td>${clientTypeBadge}</td>
-                        <td><span class="badge ${log.event_type.includes('verify') ? 'badge-active' : 'badge-offline'}">${log.event_type}</span></td>
-                        <td><code class="code-snippet">${(log.license_key || '').substring(0, 14)}...</code></td>
+                        <td><span class="badge-chip ${log.event_type.includes('verify') ? 'chip-active' : 'chip-offline'}">${log.event_type}</span></td>
+                        <td><code style="font-family:monospace; font-size:12px; background:#F3F4F7; padding:2px 4px; border:1px solid #1A1B22;">${(log.license_key || '').substring(0, 14)}...</code></td>
                         <td><strong>${log.device_model || 'Android'}</strong></td>
-                        <td><span class="badge ${log.connection_type === 'WiFi' ? 'badge-active' : 'badge-warning'}">${log.connection_type || 'WiFi'}</span></td>
-                        <td>${log.ip || '--'} (${log.location || 'Local'})</td>
-                        <td><span style="font-size:11px;">${log.webview_version || 'WebView'}</span></td>
-                        <td><code class="code-snippet" style="font-size:10px;">${(log.browser_fingerprint || '--').substring(0, 16)}</code></td>
+                        <td><span class="badge-chip ${log.connection_type === 'WiFi' ? 'chip-active' : 'chip-expired'}">${log.connection_type || 'WiFi'}</span></td>
+                        <td><strong>${log.ip || '--'}</strong><br><span style="font-size:11px; color:#4A4D5A;">(${log.location || 'Local'})</span></td>
+                        <td><span style="font-size:11.5px;">${log.webview_version || 'WebView'}</span></td>
+                        <td><code style="font-family:monospace; font-size:10px; max-width:140px; overflow:hidden; text-overflow:ellipsis; display:inline-block;">${(log.browser_fingerprint || '--').substring(0, 16)}</code></td>
                     </tr>
                 `;
             }).join('');
         } else {
-            if (!silent) tbody.innerHTML = '<tr><td colspan="9" class="loading-td">لا توجد سجلات تتبع حتى الآن.</td></tr>';
+            if (!silent) tbody.innerHTML = '<tr><td colspan="9" class="loading-td">السجل فارغ حالياً - سيتم تسجيل أي اتصال جديد فور تشغيل التطبيق أو الاسكربت.</td></tr>';
         }
     } catch (e) {
         console.error('Failed to load telemetry:', e);

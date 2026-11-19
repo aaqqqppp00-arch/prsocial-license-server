@@ -407,7 +407,10 @@ def list_licenses():
 @admin_required
 def admin_generate_key():
     data = request.get_json(force=True, silent=True) or {}
-    duration = data.get("duration", "month") # week, month, year, lifetime
+    duration = data.get("duration", "month") # week, month, quarter, year, lifetime
+    client_type = data.get("client_type", "app").strip().lower()
+    if client_type not in ("app", "script"):
+        client_type = "app"
     
     now = datetime.now()
     created_at = now.strftime("%Y-%m-%d")
@@ -418,6 +421,9 @@ def admin_generate_key():
     elif duration == "month":
         expires_at = (now + timedelta(days=30)).strftime("%Y-%m-%d")
         duration_label = "شهر (30 يوم)"
+    elif duration == "quarter":
+        expires_at = (now + timedelta(days=90)).strftime("%Y-%m-%d")
+        duration_label = "3 شهور (90 يوم)"
     elif duration == "year":
         expires_at = (now + timedelta(days=365)).strftime("%Y-%m-%d")
         duration_label = "سنة (365 يوم)"
@@ -430,12 +436,12 @@ def admin_generate_key():
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO licenses (key, duration_type, created_at, expires_at, status, is_tested, is_online, activation_count, multi_device_detected)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO licenses (key, duration_type, client_type, created_at, expires_at, status, is_tested, is_online, activation_count, multi_device_detected)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """ if is_postgres() else """
-        INSERT INTO licenses (key, duration_type, created_at, expires_at, status, is_tested, is_online, activation_count, multi_device_detected)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (key, duration, created_at, expires_at, "active", False if is_postgres() else 0, False if is_postgres() else 0, 0, False if is_postgres() else 0))
+        INSERT INTO licenses (key, duration_type, client_type, created_at, expires_at, status, is_tested, is_online, activation_count, multi_device_detected)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (key, duration, client_type, created_at, expires_at, "active", False if is_postgres() else 0, False if is_postgres() else 0, 0, False if is_postgres() else 0))
     conn.commit()
     cur.close()
     conn.close()
@@ -444,6 +450,7 @@ def admin_generate_key():
         "success": True,
         "key": key,
         "duration_type": duration,
+        "client_type": client_type,
         "duration_label": duration_label,
         "expires_at": expires_at,
         "message": f"تم توليد مفتاح ترخيص جديد بنجاح لمدة {duration_label}!"

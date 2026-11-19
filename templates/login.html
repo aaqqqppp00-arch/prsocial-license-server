@@ -1,55 +1,129 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل دخول الإدارة | PR.Social Security Shield</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <title>تسجيل دخول لوحة التحكم | PR.Social Master</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            border-radius: 0 !important;
+        }
+        body {
+            margin: 0;
+            background: #FFFFFF;
+            color: #1A1B22;
+            font-family: 'Cairo', sans-serif;
+        }
+        .field:focus, .field:focus-within {
+            border-color: #FF5722 !important;
+        }
+        .mono {
+            font-size: 280px;
+        }
+        @media (max-width: 960px) {
+            .branding-side {
+                display: none !important;
+            }
+            .login-container {
+                min-height: 100vh;
+            }
+        }
+        @media (max-width: 560px) {
+            .mono {
+                font-size: 150px;
+            }
+        }
+    </style>
 </head>
-<body class="login-body">
-    <div class="login-wrapper">
-        <div class="login-brand-bar">
-            <div class="brand-square">PR</div>
-            <div class="brand-text">
-                <h1>PR.Social Master</h1>
-                <p>Enterprise License Management Console</p>
+<body>
+    <div dir="rtl" class="login-container" style="min-height: 100vh; display: flex; flex-wrap: wrap; background: #FFFFFF; color: #1A1B22; font-family: 'Cairo', sans-serif;">
+        
+        <!-- Login Form Side (RTL) -->
+        <div style="flex: 1 1 480px; box-sizing: border-box; padding: 56px 32px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div style="width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 32px;">
+                
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div style="width: 56px; height: 6px; background: #FF5722;"></div>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <h1 style="margin: 0; font-size: 36px; font-weight: 800; line-height: 1.25;">تسجيل دخول لوحة التحكم</h1>
+                        <div style="font-size: 16px; font-weight: 500; line-height: 1.7; color: #4A4D5A;">يرجى إدخال بيانات حساب المسؤول المشفرة للوصول</div>
+                    </div>
+                </div>
+
+                {% if error %}
+                <div style="background: #FEE2E2; border: 2px solid #EF4444; padding: 14px 18px; color: #B91C1C; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 18px;">⚠</span>
+                    <span>{{ error }}</span>
+                </div>
+                {% endif %}
+
+                <form method="POST" action="/admin/login" style="display: flex; flex-direction: column; gap: 24px;">
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <label for="admin-user" style="font-size: 14px; font-weight: 800;">اسم المستخدم (Admin Username)</label>
+                        <input id="admin-user" name="username" class="field" type="text" autocomplete="username" required autofocus placeholder="admin" style="height: 56px; box-sizing: border-box; border: 2px solid #1A1B22; border-radius: 0; background: #FFFFFF; padding: 0 16px; outline: 0; font-family: inherit; font-size: 16px; font-weight: 500; color: #1A1B22;">
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <label for="admin-pass" style="font-size: 14px; font-weight: 800;">كلمة المرور المشفرة (Encrypted Password)</label>
+                        <div class="field" style="height: 56px; box-sizing: border-box; border: 2px solid #1A1B22; border-radius: 0; background: #FFFFFF; display: flex; align-items: stretch;">
+                            <input id="admin-pass" name="password" type="password" autocomplete="current-password" required placeholder="••••••••••••" style="flex: 1; min-width: 0; border: 0; border-radius: 0; outline: 0; background: transparent; padding: 0 16px; font-family: inherit; font-size: 16px; font-weight: 500; color: #1A1B22;">
+                            <button type="button" onclick="togglePassword()" aria-label="إظهار كلمة المرور" style="width: 52px; border: 0; border-right: 2px solid #1A1B22; border-radius: 0; background: #F3F4F7; color: #1A1B22; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                                <svg id="eyeIcon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true">
+                                    <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" style="height: 58px; border: 0; border-radius: 0; background: #FF5722; color: #1A1B22; font-family: inherit; font-size: 18px; font-weight: 800; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; cursor: pointer; transition: background 0.15s ease;">
+                        <span>تسجيل الدخول إلى النظام</span>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1A1B22" stroke-width="2.4" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true">
+                            <path d="M20 12H5M11 6l-6 6 6 6"></path>
+                        </svg>
+                    </button>
+                </form>
+
             </div>
         </div>
 
-        <div class="login-box">
-            <div class="login-header">
-                <h2>تسجيل دخول لوحة التحكم</h2>
-                <p>يرجى إدخال بيانات حساب المسؤول المشفرة للوصول</p>
+        <!-- Branding Side (LTR) -->
+        <div dir="ltr" class="branding-side" style="flex: 1 1 480px; box-sizing: border-box; min-height: 100vh; padding: 56px; background: #1A1B22; color: #FFFFFF; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+                <div style="font-size: 24px; font-weight: 800;">PR.Social Master</div>
+                <div style="font-size: 14px; font-weight: 500; color: #B9BCC9;">Enterprise License Management Console</div>
             </div>
 
-            {% if error %}
-            <div class="alert alert-error">
-                <span class="alert-icon">⚠</span>
-                <span>{{ error }}</span>
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+                <div class="mono" style="font-weight: 800; line-height: 0.85; letter-spacing: -0.04em; color: #FFFFFF;">PR</div>
+                <div style="width: 72%; height: 22px; background: #FF5722;"></div>
             </div>
-            {% endif %}
 
-            <form method="POST" action="/admin/login" class="login-form">
-                <div class="form-group">
-                    <label for="username">اسم المستخدم (Admin Username)</label>
-                    <input type="text" id="username" name="username" required autocomplete="username" placeholder="admin" autofocus>
-                </div>
-
-                <div class="form-group">
-                    <label for="password">كلمة المرور المشفرة (Encrypted Password)</label>
-                    <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••••••">
-                </div>
-
-                <button type="submit" class="btn btn-primary btn-block">تسجيل الدخول إلى النظام</button>
-            </form>
-
-            <div class="login-footer">
-                <span>محمي بتشفير HMAC-SHA256 وقاعدة بيانات Supabase PostgreSQL</span>
+            <div style="border-top: 2px solid #3A3C48; padding-top: 20px;">
+                <div dir="rtl" style="display: inline-block; font-size: 14px; font-weight: 500; line-height: 1.7; color: #B9BCC9;">محمي بتشفير HMAC-SHA256 وقاعدة بيانات Supabase PostgreSQL</div>
             </div>
         </div>
+
     </div>
+
+    <script>
+        function togglePassword() {
+            const passInput = document.getElementById('admin-pass');
+            const eyeIcon = document.getElementById('eyeIcon');
+            if (passInput.type === 'password') {
+                passInput.type = 'text';
+                eyeIcon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+            } else {
+                passInput.type = 'password';
+                eyeIcon.innerHTML = '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"></path><circle cx="12" cy="12" r="3"></circle>';
+            }
+        }
+    </script>
 </body>
 </html>
