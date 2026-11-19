@@ -304,6 +304,31 @@
         </div>
     </div>
 
+    <!-- Professional Enterprise Action Confirmation Modal (Zero Border Radius) -->
+    <div id="confirmModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card" style="max-width: 480px;">
+            <div class="modal-header-bar" id="confirmModalHeader">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span id="confirmModalIcon" style="font-size: 18px;">⚠️</span>
+                    <h3 id="confirmModalTitle" style="font-size: 16px; font-weight: 800;">تأكيد الإجراء</h3>
+                </div>
+                <button type="button" class="modal-close-btn" onclick="closeConfirmModal()">✕</button>
+            </div>
+            <div class="modal-body-content" style="padding: 20px;">
+                <p id="confirmModalMessage" style="font-size: 14px; font-weight: 700; line-height: 1.6; color: #1A1B22; margin-bottom: 12px;"></p>
+                <div id="confirmModalKeyBox" style="display: block; background: #F3F4F7; border: 1.5px solid #1A1B22; padding: 10px; margin-bottom: 12px;">
+                    <div style="font-size: 11px; font-weight: 700; color: #4A4D5A; margin-bottom: 2px;">مفتاح الترخيص المستهدف:</div>
+                    <code id="confirmModalKeyCode" style="font-family: monospace; font-size: 14px; font-weight: 800; color: #1A1B22;"></code>
+                </div>
+                <div id="confirmModalSubtext" style="font-size: 12.5px; color: #DC2626; font-weight: 600; line-height: 1.5;"></div>
+            </div>
+            <div class="modal-footer-bar" style="padding: 12px 20px;">
+                <button type="button" class="btn-secondary-action" onclick="closeConfirmModal()" style="height: 38px; font-size: 13px;">إلغاء</button>
+                <button type="button" id="confirmModalActionBtn" class="btn-accent" style="height: 38px; font-size: 13px; padding: 0 20px;">تأكيد التنفيذ</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Notification -->
     <div id="adminToast" class="toast-bar"></div>
 

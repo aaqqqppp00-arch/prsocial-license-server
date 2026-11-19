@@ -1,7 +1,6 @@
 /* ==========================================================================
-   PR.Social Master Console - Enterprise Design System
-   Exact Design Match to Reference Mockups (Login.dc.html & Dashboard.dc.html)
-   Strict Zero Border Radius (border-radius: 0) & Clean Light Theme
+   PR.Social Master Console - Compact Professional Enterprise Design System
+   Zero Border Radius (border-radius: 0) & Clean Light Proportional Theme
    ========================================================================== */
 
 :root {
@@ -28,8 +27,8 @@ body {
     background-color: var(--bg-page);
     color: var(--text-main);
     font-family: 'Cairo', sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
+    font-size: 13.5px;
+    line-height: 1.45;
     margin: 0;
 }
 
@@ -41,48 +40,48 @@ body {
 .top-nav {
     background: #1A1B22;
     color: #FFFFFF;
-    padding: 12px 32px;
+    padding: 10px 24px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
+    gap: 14px;
 }
 
 .nav-left {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 24px;
+    gap: 20px;
 }
 
 .brand-wrapper {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
 }
 
 .brand-icon-box {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 3px;
+    gap: 2px;
 }
 
 .brand-icon-box .pr-text {
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 800;
     line-height: 1;
 }
 
 .brand-icon-box .pr-bar {
-    width: 26px;
-    height: 4px;
+    width: 24px;
+    height: 3px;
     background: var(--accent-orange);
 }
 
 .brand-title {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 500;
 }
 
@@ -93,17 +92,17 @@ body {
 .server-status-pill {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     border: 1px solid #3A3C48;
-    padding: 8px 14px;
-    font-size: 13px;
+    padding: 6px 12px;
+    font-size: 12px;
     font-weight: 500;
     color: #D5D8E0;
 }
 
 .status-dot-green {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     background: #2FBF71;
     display: inline-block;
 }
@@ -112,37 +111,37 @@ body {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 }
 
 .user-profile {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-size: 14px;
+    gap: 8px;
+    font-size: 13.5px;
     font-weight: 700;
 }
 
 .user-badge {
     background: var(--accent-orange);
     color: #1A1B22;
-    padding: 2px 8px;
-    font-size: 12px;
+    padding: 2px 6px;
+    font-size: 11px;
     font-weight: 800;
 }
 
 .btn-nav {
-    height: 40px;
+    height: 36px;
     border: 1.5px solid #5A5D6B;
     background: transparent;
     color: #FFFFFF;
-    padding: 0 14px;
+    padding: 0 12px;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     cursor: pointer;
     text-decoration: none;
     transition: background 0.15s ease, border-color 0.15s ease;
@@ -158,18 +157,18 @@ body {
     flex: 1;
     box-sizing: border-box;
     width: 100%;
-    max-width: 1360px;
+    max-width: 1320px;
     margin: 0 auto;
-    padding: 32px;
+    padding: 20px;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 18px;
 }
 
-/* --- Metrics Grid --- */
+/* --- Metrics Grid (Clean Proportional Sizes) --- */
 .metrics-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 2px;
     background: #1A1B22;
     border: var(--border-main);
@@ -177,36 +176,36 @@ body {
 
 .metric-card {
     background: #FFFFFF;
-    padding: 24px;
+    padding: 16px 20px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 8px;
 }
 
 .metric-title {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-size: 14px;
-    font-weight: 800;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
     color: var(--text-muted);
 }
 
 .metric-color-square {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     display: inline-block;
 }
 
 .metric-number {
-    font-size: 72px;
+    font-size: 38px;
     font-weight: 800;
-    line-height: 1;
+    line-height: 1.1;
     color: var(--text-main);
 }
 
 .metric-subtitle {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     color: var(--text-muted);
 }
@@ -218,69 +217,69 @@ body {
 }
 
 .section-header {
-    padding: 20px 24px;
+    padding: 14px 20px;
     border-bottom: var(--border-main);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
+    gap: 12px;
 }
 
 .section-header-titles {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
 }
 
 .section-h2 {
     margin: 0;
-    font-size: 20px;
+    font-size: 16.5px;
     font-weight: 800;
     color: var(--text-main);
 }
 
 .section-desc {
-    font-size: 14px;
+    font-size: 12.5px;
     font-weight: 500;
     color: var(--text-muted);
 }
 
 /* --- Generator Form --- */
 .generator-content {
-    padding: 24px;
+    padding: 16px 20px;
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
-    gap: 16px;
+    gap: 14px;
 }
 
 .input-block {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .input-label {
-    font-size: 14px;
-    font-weight: 800;
+    font-size: 13px;
+    font-weight: 700;
     color: var(--text-main);
 }
 
 .custom-select-wrap {
     position: relative;
-    min-width: 280px;
+    min-width: 240px;
 }
 
 .custom-select {
     width: 100%;
-    height: 52px;
+    height: 42px;
     box-sizing: border-box;
     border: var(--border-main);
     background: #FFFFFF;
-    padding: 0 16px 0 44px;
+    padding: 0 14px 0 38px;
     font-family: inherit;
-    font-size: 15px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--text-main);
     appearance: none;
@@ -291,23 +290,23 @@ body {
 
 .select-arrow {
     position: absolute;
-    left: 14px;
-    top: 17px;
+    left: 12px;
+    top: 13px;
     pointer-events: none;
 }
 
 .btn-accent {
-    height: 52px;
+    height: 42px;
     border: 0;
     background: var(--accent-orange);
     color: #1A1B22;
-    padding: 0 24px;
+    padding: 0 20px;
     font-family: inherit;
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 800;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     cursor: pointer;
     transition: opacity 0.15s ease;
 }
@@ -317,24 +316,24 @@ body {
 }
 
 .new-key-alert {
-    margin: 0 24px 24px 24px;
-    padding: 16px 20px;
+    margin: 0 20px 16px 20px;
+    padding: 12px 16px;
     background: #FFF7ED;
     border: 2px solid var(--accent-orange);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
+    gap: 12px;
 }
 
 .new-key-code {
     font-family: monospace;
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 800;
     color: #C2410C;
     background: #FFEDD5;
-    padding: 6px 14px;
+    padding: 4px 10px;
     border: 1px solid #FDBA74;
 }
 
@@ -343,36 +342,36 @@ body {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 }
 
 .search-input-box {
-    width: 340px;
+    width: 300px;
     max-width: 100%;
-    height: 44px;
+    height: 38px;
     box-sizing: border-box;
     border: var(--border-main);
     background: #FFFFFF;
-    padding: 0 14px;
+    padding: 0 12px;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     color: var(--text-main);
     outline: 0;
 }
 
 .btn-secondary-action {
-    height: 44px;
+    height: 38px;
     border: var(--border-main);
     background: #FFFFFF;
     color: var(--text-main);
-    padding: 0 16px;
+    padding: 0 14px;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 800;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     cursor: pointer;
     transition: background 0.15s ease;
 }
@@ -384,19 +383,19 @@ body {
 .filter-tab-bar {
     background: #F3F4F7;
     border-top: var(--border-main);
-    padding: 0 12px;
+    padding: 0 10px;
     display: flex;
     flex-wrap: wrap;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .filter-tab-btn {
     border: 0;
-    border-bottom: 4px solid transparent;
+    border-bottom: 3px solid transparent;
     background: transparent;
-    padding: 14px 18px 10px;
+    padding: 11px 14px 9px;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     color: var(--text-muted);
     cursor: pointer;
@@ -408,7 +407,7 @@ body {
 }
 
 .filter-tab-btn.active {
-    border-bottom: 4px solid var(--accent-orange);
+    border-bottom: 3px solid var(--accent-orange);
     color: var(--text-main);
     font-weight: 800;
 }
@@ -422,7 +421,7 @@ body {
 .enterprise-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13.5px;
+    font-size: 13px;
     text-align: right;
 }
 
@@ -430,7 +429,7 @@ body {
     background: #1A1B22;
     color: #FFFFFF;
     font-weight: 800;
-    padding: 12px 14px;
+    padding: 10px 12px;
     white-space: nowrap;
     border-left: 1px solid #3A3C48;
 }
@@ -440,7 +439,7 @@ body {
 }
 
 .enterprise-table td {
-    padding: 12px 14px;
+    padding: 10px 12px;
     border-bottom: 1px solid #E5E7EB;
     border-left: 1px solid #E5E7EB;
     color: var(--text-main);
@@ -457,8 +456,8 @@ body {
 
 .loading-td {
     text-align: center;
-    padding: 36px !important;
-    font-size: 15px;
+    padding: 28px !important;
+    font-size: 14px;
     font-weight: 600;
     color: var(--text-muted);
 }
@@ -466,8 +465,8 @@ body {
 /* --- Badges --- */
 .badge-chip {
     display: inline-block;
-    padding: 4px 8px;
-    font-size: 12px;
+    padding: 3px 6px;
+    font-size: 11px;
     font-weight: 700;
     white-space: nowrap;
 }
@@ -517,12 +516,12 @@ body {
 .action-btn-group {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 4px;
 }
 
 .btn-action-small {
-    padding: 4px 8px;
-    font-size: 11.5px;
+    padding: 3px 7px;
+    font-size: 11px;
     font-weight: 700;
     font-family: inherit;
     cursor: pointer;
@@ -579,23 +578,23 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 9999;
-    padding: 20px;
+    padding: 16px;
 }
 
 .modal-card {
     background: #FFFFFF;
-    border: 3px solid #1A1B22;
+    border: 2px solid #1A1B22;
     width: 100%;
-    max-width: 620px;
+    max-width: 580px;
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
 }
 
 .modal-header-bar {
     background: #1A1B22;
     color: #FFFFFF;
-    padding: 16px 20px;
+    padding: 12px 18px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -603,7 +602,7 @@ body {
 
 .modal-header-bar h3 {
     margin: 0;
-    font-size: 18px;
+    font-size: 15.5px;
     font-weight: 800;
 }
 
@@ -611,38 +610,38 @@ body {
     background: transparent;
     border: 0;
     color: #FFFFFF;
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 800;
     cursor: pointer;
-    padding: 0 8px;
+    padding: 0 6px;
 }
 
 .modal-body-content {
-    padding: 24px;
+    padding: 20px;
 }
 
 .modal-footer-bar {
-    padding: 16px 24px;
+    padding: 12px 20px;
     background: #F3F4F7;
-    border-top: 2px solid #1A1B22;
+    border-top: 1.5px solid #1A1B22;
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
+    gap: 8px;
 }
 
 /* --- Toast Notification --- */
 .toast-bar {
     position: fixed;
-    bottom: 24px;
+    bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
     background: #1A1B22;
     color: #FFFFFF;
     border: 2px solid var(--accent-orange);
-    padding: 14px 28px;
+    padding: 10px 22px;
     font-weight: 700;
-    font-size: 15px;
+    font-size: 13.5px;
     z-index: 10000;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
     display: none;
 }

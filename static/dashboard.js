@@ -1,5 +1,50 @@
 let allLicenses = [];
 let activeFilter = 'all';
+let pendingConfirmCallback = null;
+
+function openConfirmModal({ title, icon, message, key, subtext, btnText, isDanger, onConfirm }) {
+    const titleEl = document.getElementById('confirmModalTitle');
+    const iconEl = document.getElementById('confirmModalIcon');
+    const msgEl = document.getElementById('confirmModalMessage');
+    const keyBox = document.getElementById('confirmModalKeyBox');
+    const keyEl = document.getElementById('confirmModalKeyCode');
+    const subtextEl = document.getElementById('confirmModalSubtext');
+    const actionBtn = document.getElementById('confirmModalActionBtn');
+
+    if (titleEl) titleEl.innerText = title || 'تأكيد الإجراء';
+    if (iconEl) iconEl.innerText = icon || '⚠️';
+    if (msgEl) msgEl.innerText = message || '';
+
+    if (key && keyEl && keyBox) {
+        keyEl.innerText = key;
+        keyBox.style.display = 'block';
+    } else if (keyBox) {
+        keyBox.style.display = 'none';
+    }
+
+    if (subtextEl) subtextEl.innerText = subtext || '';
+
+    if (actionBtn) {
+        actionBtn.innerText = btnText || 'تأكيد التنفيذ';
+        if (isDanger) {
+            actionBtn.style.background = '#DC2626';
+            actionBtn.style.color = '#FFFFFF';
+        } else {
+            actionBtn.style.background = 'var(--accent-orange)';
+            actionBtn.style.color = '#1A1B22';
+        }
+    }
+
+    pendingConfirmCallback = onConfirm;
+    const modal = document.getElementById('confirmModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeConfirmModal() {
+    const modal = document.getElementById('confirmModal');
+    if (modal) modal.style.display = 'none';
+    pendingConfirmCallback = null;
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     loadStats();
@@ -12,6 +57,18 @@ document.addEventListener('DOMContentLoaded', () => {
         loadLicenses(true);
         loadTelemetry(true);
     }, 15000);
+
+    // Confirmation Modal Action Button
+    const confirmBtn = document.getElementById('confirmModalActionBtn');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', () => {
+            if (pendingConfirmCallback) {
+                const cb = pendingConfirmCallback;
+                closeConfirmModal();
+                cb();
+            }
+        });
+    }
 
     // Event listeners
     const btnGen = document.getElementById('btnGenerateKey');
@@ -243,72 +300,112 @@ async function generateKey() {
     }
 }
 
-async function revokeKey(key) {
-    if (!confirm(`هل أنت متأكد من إلغاء الترخيص للمفتاح:\n${key}\nسيتم قفل التطبيق فوراً عند المستخدم!`)) return;
-    try {
-        const res = await fetch('/api/admin/licenses/revoke', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key })
-        });
-        const data = await res.json();
-        showToast(data.message);
-        loadStats();
-        loadLicenses();
-    } catch (e) {
-        alert('خطأ أثناء إلغاء الترخيص');
-    }
+function revokeKey(key) {
+    openConfirmModal({
+        title: 'إلغاء الترخيص وإيقاف الجلسة',
+        icon: '🛑',
+        message: 'هل أنت متأكد من إلغاء الترخيص لهذا المفتاح؟',
+        key: key,
+        subtext: '⚠️ سيتم إيقاف المحرك والبوت فوراً على جهاز المستخدم بمجرد التحقق!',
+        btnText: 'تأكيد الإلغاء (Revoke)',
+        isDanger: true,
+        onConfirm: async () => {
+            try {
+                const res = await fetch('/api/admin/licenses/revoke', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key })
+                });
+                const data = await res.json();
+                showToast(data.message || 'تم إلغاء الترخيص بنجاح');
+                loadStats();
+                loadLicenses();
+            } catch (e) {
+                showToast('خطأ أثناء إلغاء الترخيص');
+            }
+        }
+    });
 }
 
-async function blockKey(key) {
-    if (!confirm(`تحذير: هل أنت متأكد من حظر المفتاح والجهاز المربوط:\n${key}\nلن يُسمح لهذا الجهاز أو المفتاح بالدخول مطلقاً!`)) return;
-    try {
-        const res = await fetch('/api/admin/licenses/block', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key })
-        });
-        const data = await res.json();
-        showToast(data.message);
-        loadStats();
-        loadLicenses();
-    } catch (e) {
-        alert('خطأ أثناء حظر المفتاح');
-    }
+function blockKey(key) {
+    openConfirmModal({
+        title: 'حظر المفتاح والعتاد المربوط',
+        icon: '🚫',
+        message: 'هل أنت متأكد من حظر هذا المفتاح والعتاد المسجل عليه؟',
+        key: key,
+        subtext: '⛔ لن يُسمح لهذا الجهاز أو المفتاح بالدخول أو العمل مطلقاً حتى يتم فك الحظر!',
+        btnText: 'تأكيد الحظر الشامل (Block)',
+        isDanger: true,
+        onConfirm: async () => {
+            try {
+                const res = await fetch('/api/admin/licenses/block', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key })
+                });
+                const data = await res.json();
+                showToast(data.message || 'تم حظر المفتاح والعتاد بنجاح');
+                loadStats();
+                loadLicenses();
+            } catch (e) {
+                showToast('خطأ أثناء حظر المفتاح');
+            }
+        }
+    });
 }
 
-async function activateKey(key) {
-    const resetDevice = confirm(`هل ترغب في فك ربط العتاد (Reset Device ID) أيضاً مع التنشيط؟\n\nاضغط "موافق" لفك ربط العتاد والسماح بتفعيله على جهاز جديد.\nاضغط "إلغاء" للتنشيط على نفس الجهاز السابق فقط.`);
-    try {
-        const res = await fetch('/api/admin/licenses/activate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key, reset_device: resetDevice })
-        });
-        const data = await res.json();
-        showToast(data.message);
-        loadStats();
-        loadLicenses();
-    } catch (e) {
-        alert('خطأ أثناء تنشيط المفتاح');
-    }
+function activateKey(key) {
+    openConfirmModal({
+        title: 'تنشيط مفتاح الترخيص',
+        icon: '✅',
+        message: 'سيتم إعادة تفعيل هذا المفتاح ليتمكن المستخدم من استئناف العمل.',
+        key: key,
+        subtext: '💡 سيتم فك ربط العتاد تلقائياً للسماح بتفعيله على أي جهاز جديد.',
+        btnText: 'تنشيط المفتاح الآن',
+        isDanger: false,
+        onConfirm: async () => {
+            try {
+                const res = await fetch('/api/admin/licenses/activate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key, reset_device: true })
+                });
+                const data = await res.json();
+                showToast(data.message || 'تم تنشيط المفتاح بنجاح');
+                loadStats();
+                loadLicenses();
+            } catch (e) {
+                showToast('خطأ أثناء تنشيط المفتاح');
+            }
+        }
+    });
 }
 
-async function deleteKey(key) {
-    if (!confirm(`⚠️ تحذير نهائي: هل تريد حذف المفتاح:\n${key}\nوسجلاته بالكامل من قاعدة البيانات؟ لا يمكن التراجع عن هذا الإجراء!`)) return;
-    try {
-        const res = await fetch('/api/admin/licenses/delete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key })
-        });
-        const data = await res.json();
-        showToast(data.message);
-        loadStats();
-        loadLicenses();
-    } catch (e) {
-        alert('خطأ أثناء حذف المفتاح');
-    }
+function deleteKey(key) {
+    openConfirmModal({
+        title: 'حذف الترخيص نهائياً',
+        icon: '🗑️',
+        message: 'هل تريد حذف هذا المفتاح وسجلاته بالكامل من قاعدة البيانات؟',
+        key: key,
+        subtext: '⚠️ هذا الإجراء نهائي ولا يمكن التراجع عنه بعد تنفيذه!',
+        btnText: 'حذف نهائي من السيرفر',
+        isDanger: true,
+        onConfirm: async () => {
+            try {
+                const res = await fetch('/api/admin/licenses/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key })
+                });
+                const data = await res.json();
+                showToast(data.message || 'تم حذف المفتاح نهائياً');
+                loadStats();
+                loadLicenses();
+            } catch (e) {
+                showToast('خطأ أثناء حذف المفتاح');
+            }
+        }
+    });
 }
 
 function showKeyDetails(key) {
